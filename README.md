@@ -1,3 +1,13 @@
+---
+title: SupportDeskEnv
+emoji: 🤖
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # 🧠 SupportDeskEnv — OpenEnv for Real-World Customer Support AI
 
 SupportDeskEnv is a production-grade OpenEnv environment that simulates real-world customer support workflows, enabling evaluation of AI agents on decision-making, empathy, and multi-step reasoning.
