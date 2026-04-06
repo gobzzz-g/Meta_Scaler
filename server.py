@@ -9,6 +9,10 @@ env = SupportDeskEnv()
 class ResetRequest(BaseModel):
     level: str = "medium"
 
+@app.get("/")
+def root():
+    return {"message": "SupportDeskEnv is running 🚀"}
+
 @app.post("/reset")
 async def reset(req: ResetRequest):
     obs = await env.reset(req.level)
