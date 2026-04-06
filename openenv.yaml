@@ -1,0 +1,6 @@
+name: "SupportDeskEnv"
+version: "1.0.0"
+description: "AI Customer Support Simulation Environment"
+entrypoint: "server.py"
+interface: "fastapi"
+port: 7860

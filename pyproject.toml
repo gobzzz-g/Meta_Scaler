@@ -1,0 +1,21 @@
+[project]
+name = "supportdesk-env"
+version = "0.1.0"
+description = "AI Customer Support Simulation Environment using OpenEnv"
+requires-python = ">=3.10"
+authors = [
+    { name = "Gobinath" }
+]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "openai",
+    "openenv-core>=0.2.0"
+]
+
+[project.scripts]
+server = "server.app:main"
+
+[tool.openenv]
+entrypoint = "server.app:main"
