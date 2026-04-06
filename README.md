@@ -1,46 +1,66 @@
----
-title: SupportDeskEnv
-emoji: 🤖
-colorFrom: blue
-colorTo: green
-sdk: docker
-app_port: 7860
+# 🧠 SupportDeskEnv — OpenEnv for Real-World Customer Support AI
+
+SupportDeskEnv is a production-grade OpenEnv environment that simulates real-world customer support workflows, enabling evaluation of AI agents on decision-making, empathy, and multi-step reasoning.
+
 ---
 
-# SupportDeskEnv - AI Customer Support Simulation Environment
+## 🚀 Overview
 
-## Overview
-A real-world customer support environment to test LLM agents on issue classification, multi-step conversation, and decision making.
+Modern AI agents must handle more than just tasks — they must:
+- Understand user intent
+- Respond with empathy
+- Take correct actions
+- Resolve issues efficiently
 
-## Relevance
-Robust evaluation of customer-facing AI agents is critical to verify empathetic alignment and accurate routing prior to production deployment.
+SupportDeskEnv models this challenge by simulating realistic support tickets and evaluating agent behavior using structured rewards.
 
-## Interaction APIs
-The environment serves a FastAPI interface:
-- `POST /reset` - Resets environment, returns initial observation.
-- `POST /step` - Takes an agent action, returns new observation, reward, done flag, and info.
-- `GET /state` - Returns current state.
+---
 
-## Tasks
-* **EASY**: Classification only.
-* **MEDIUM**: Classification + single polite response.
-* **HARD**: Multi-step conversational resolution emphasizing empathy and solution delivery.
+## 🌍 Real-World Use Case
 
-## Setup & Run Local
-```bash
-pip install -r requirements.txt
-python server.py
-```
+This environment replicates real customer support scenarios such as:
+- Login failures
+- Payment and billing issues
+- General account queries
 
-## Docker & Hugging Face Deployment
-```bash
-docker build -t supportdesk .
-docker run -p 7860:7860 supportdesk
-```
-Works immediately on Hugging Face Spaces (Port 7860 exposed).
+It captures:
+- Emotional context (e.g., frustrated users)
+- Multi-step interactions
+- Resolution workflows
 
-## Inference Script
-Ensure variables `OPENAI_API_KEY` and `MODEL_NAME` are set.
-```bash
-python inference.py
-```
+---
+
+## 🧩 OpenEnv Specification
+
+Fully compliant with OpenEnv:
+
+- ✅ Typed `Observation`, `Action`, `Reward` models (Pydantic)
+- ✅ `reset()`, `step()`, `state()` APIs
+- ✅ `openenv.yaml` included
+- ✅ Validated via `openenv validate`
+
+---
+
+## ⚙️ Action Space
+
+```json
+## ⚙️ Action Space
+
+```json
+{
+  "category": "billing | tech | general",
+  "response": "string",
+  "escalate": "boolean",
+  "resolve": "boolean"
+}
+
+## ⚙️ Action Space
+
+```json
+{
+  "category": "billing | tech | general",
+  "response": "string",
+  "escalate": "boolean",
+  "resolve": "boolean"
+}
+

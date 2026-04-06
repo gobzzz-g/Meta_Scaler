@@ -1,33 +1,41 @@
-from .models import Action, Observation
+from typing import Any
 
-def grade_easy(action: Action, expected_category: str) -> float:
-    cat = (action.category or "").lower()
-    if cat and expected_category.lower() in cat:
-        return 1.0
-    return 0.0
-
-def grade_medium(action: Action, expected_category: str) -> float:
+def grade_action(action: Any, observation: Any) -> float:
     score = 0.0
-    cat = (action.category or "").lower()
-    if cat and expected_category.lower() in cat:
-        score += 0.4
-    
-    resp = (action.response or "").lower()
-    if resp:
-        if any(w in resp for w in ["sorry", "apologize", "please", "thank"]):
-            score += 0.3
-        if len(action.response or "") > 10:
-            score += 0.3
-    return float(min(1.0, max(0.0, score)))
 
-def grade_hard(action: Action, obs: Observation, expected_category: str) -> float:
-    score = 0.0
-    resp = (action.response or "").lower()
-    
-    if any(w in resp for w in ["understand", "sorry", "frustrat"]):
-        score += 0.25
-    if "?" in resp or any(w in resp for w in ["provide", "could you"]):
-        score += 0.25
-    if action.resolve:
-        score += 0.5
-    return float(min(1.0, max(0.0, score)))
+    category = (getattr(action, "category", "") or "").lower()
+    response = (getattr(action, "response", "") or "").lower()
+    issue = (getattr(observation, "user_message", "") or "").lower()
+
+    # ---------------------------
+    # 1. Category match (0.5)
+    # ---------------------------
+    if any(k in issue for k in ["payment", "card", "billing", "refund"]):
+        if category == "billing":
+            score += 0.5
+    elif any(k in issue for k in ["login", "error", "account", "bug"]):
+        if category == "tech":
+            score += 0.5
+    else:
+        if category == "general":
+            score += 0.5
+
+    # ---------------------------
+    # 2. Response quality (0.3)
+    # ---------------------------
+    if len(response) > 25:
+        score += 0.3
+
+    # ---------------------------
+    # 3. Actionability (0.2)
+    # ---------------------------
+    if any(k in response for k in ["check", "update", "reset", "try", "restart", "please"]):
+        score += 0.2
+
+    # ---------------------------
+    # Prevent zero-lock
+    # ---------------------------
+    if score == 0.0 and len(response) > 20:
+        score = 0.2
+
+    return float(max(0.0, min(1.0, score)))
