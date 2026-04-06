@@ -1,4 +1,12 @@
-<<<<<<< HEAD
+---
+title: SupportDeskEnv
+emoji: 🤖
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+---
+
 # SupportDeskEnv - AI Customer Support Simulation Environment
 
 ## Overview
@@ -36,16 +44,3 @@ Ensure variables `OPENAI_API_KEY` and `MODEL_NAME` are set.
 ```bash
 python inference.py
 ```
-=======
----
-title: Meta
-emoji: 🐠
-colorFrom: green
-colorTo: purple
-sdk: docker
-pinned: false
-license: mit
----
-
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
->>>>>>> 0479deb3f1e1131c12715266dd1aa4e58280fa34
