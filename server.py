@@ -11,12 +11,17 @@ class ResetRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "SupportDeskEnv is running 🚀"}
+    return {"message": "SupportDeskEnv is running "}
 
 @app.post("/reset")
 async def reset(req: ResetRequest):
     obs = await env.reset(req.level)
     return {"observation": obs.dict()}
+
+@app.get("/reset")
+async def reset_get():
+    # Helper for browser testing defaulting to medium
+    return await reset(ResetRequest(level="medium"))
 
 @app.post("/step")
 async def step(action: Action):
