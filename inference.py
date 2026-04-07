@@ -161,4 +161,6 @@ def run_inference(level="hard"):
 # ENTRY POINT
 # -----------------------------
 if __name__ == "__main__":
+    run_inference("easy")
+    run_inference("medium")
     run_inference("hard")
