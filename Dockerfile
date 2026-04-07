@@ -13,5 +13,5 @@ RUN pip install --no-cache-dir --upgrade pip
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Run inference
-CMD ["python", "inference.py"]
+# Run start script
+CMD ["bash", "run.sh"]
