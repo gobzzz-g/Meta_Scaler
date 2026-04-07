@@ -17,4 +17,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 7860
 
 # Run inference
-CMD ["python", "inference.py"]
+CMD ["python", "server.py"]
