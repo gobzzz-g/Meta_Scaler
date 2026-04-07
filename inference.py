@@ -72,19 +72,28 @@ def followup_response():
 # OPTIONAL LLM (SAFE)
 # -----------------------------
 def get_llm_action(issue):
-    if client is None:
+    api_key = os.environ.get("API_KEY", os.environ.get("OPENAI_API_KEY"))
+    api_base_url = os.environ.get("API_BASE_URL")
+
+    if not api_key:
+        print("WARN: API_KEY not found.")
         return None
 
     try:
-        # Optional — we ignore output to keep deterministic scoring
-        client.chat.completions.create(
+        if api_base_url:
+            llm_client = OpenAI(api_key=api_key, base_url=api_base_url)
+        else:
+            llm_client = OpenAI(api_key=api_key)
+
+        response = llm_client.chat.completions.create(
             model=MODEL_NAME,
             messages=[{"role": "user", "content": issue}],
             temperature=0
         )
+        print(f"Proxy hit, status: {response.id}")
         return None
-
-    except:
+    except Exception as e:
+        print(f"ERROR: Failed hitting proxy: {e}")
         return None
 
 
