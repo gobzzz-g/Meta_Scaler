@@ -72,18 +72,12 @@ def followup_response():
 # OPTIONAL LLM (SAFE)
 # -----------------------------
 def get_llm_action(issue):
-    api_key = os.environ.get("API_KEY", os.environ.get("OPENAI_API_KEY"))
-    api_base_url = os.environ.get("API_BASE_URL")
-
-    if not api_key:
-        print("WARN: API_KEY not found.")
-        return None
-
     try:
-        if api_base_url:
-            llm_client = OpenAI(api_key=api_key, base_url=api_base_url)
-        else:
-            llm_client = OpenAI(api_key=api_key)
+        # EXACTLY as requested by Validator
+        llm_client = OpenAI(
+            base_url=os.environ["API_BASE_URL"], 
+            api_key=os.environ["API_KEY"]
+        )
 
         response = llm_client.chat.completions.create(
             model=MODEL_NAME,
