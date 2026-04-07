@@ -19,12 +19,13 @@ ENV_URL = "http://localhost:7860"
 # -----------------------------
 def get_client():
     try:
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.environ.get("API_KEY", os.getenv("OPENAI_API_KEY"))
+        api_base_url = os.environ.get("API_BASE_URL", API_BASE_URL)
 
         if not api_key or OpenAI is None:
             return None
 
-        return OpenAI(api_key=api_key, base_url=API_BASE_URL)
+        return OpenAI(api_key=api_key, base_url=api_base_url)
 
     except:
         return None

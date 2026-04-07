@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Run inference
-CMD ["python", "server.py"]
+CMD ["python", "inference.py"]
