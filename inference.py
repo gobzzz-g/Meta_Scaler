@@ -1,100 +1,106 @@
 import os
 import requests
 import json
+from openai import OpenAI
 
-# Safe OpenAI import
-try:
-    from openai import OpenAI
-except:
-    OpenAI = None
+# -----------------------------
+# FORCE LITELLM CLIENT (REQUIRED)
+# -----------------------------
+client = OpenAI(
+    base_url=os.environ["API_BASE_URL"],
+    api_key=os.environ["API_KEY"]
+)
 
-
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 ENV_URL = "http://localhost:7860"
+MODEL_NAME = "gpt-4o-mini"
 
 
 # -----------------------------
-# SAFE CLIENT
-# -----------------------------
-def get_client():
-    try:
-        api_key = os.environ.get("API_KEY", os.getenv("OPENAI_API_KEY"))
-        api_base_url = os.environ.get("API_BASE_URL", API_BASE_URL)
-
-        if not api_key or OpenAI is None:
-            return None
-
-        return OpenAI(api_key=api_key, base_url=api_base_url)
-
-    except:
-        return None
-
-
-client = get_client()
-
-
-# -----------------------------
-# CLASSIFICATION
+# CLASSIFICATION (FALLBACK)
 # -----------------------------
 def classify_issue(issue: str):
     issue = issue.lower()
-    if any(k in issue for k in ["payment", "card", "billing", "refund", "charged"]):
+
+    if any(k in issue for k in ["payment", "card", "billing", "refund", "charged", "transaction"]):
         return "billing"
-    elif any(k in issue for k in ["login", "error", "account", "bug", "crash"]):
+
+    elif any(k in issue for k in ["login", "error", "account", "bug", "crash", "password"]):
         return "tech"
+
     return "general"
 
 
 # -----------------------------
-# RESPONSE GENERATION
+# FALLBACK RESPONSE
 # -----------------------------
 def generate_response(issue: str, category: str):
     issue_lower = issue.lower()
 
     if category == "billing":
+        if "refund" in issue_lower:
+            return "I understand your concern. Please check your refund status in the billing section."
+        if "charged" in issue_lower:
+            return "I’m sorry for the inconvenience. Please verify your transaction history."
         return "Please update your payment method and retry."
 
     elif category == "tech":
-        return "Please restart the app or reset your password."
+        if "login" in issue_lower:
+            return "Please reset your password using the forgot password option."
+        if "error" in issue_lower or "crash" in issue_lower:
+            return "Please restart the app or clear cache."
+        return "Please check your internet connection and restart the app."
 
-    return "Please provide more details."
+    return "Thanks for reaching out. Please provide more details so I can assist you better."
 
 
 # -----------------------------
 # FOLLOW-UP
 # -----------------------------
 def followup_response():
-    return "Please try the steps I shared."
+    return "Please try the steps I shared and let me know if the issue continues."
 
 
 # -----------------------------
-# OPTIONAL LLM (SAFE)
+# LLM ACTION (MANDATORY)
 # -----------------------------
 def get_llm_action(issue):
     try:
-        # EXACTLY as requested by Validator
-        llm_client = OpenAI(
-            base_url=os.environ["API_BASE_URL"], 
-            api_key=os.environ["API_KEY"]
-        )
-
-        response = llm_client.chat.completions.create(
+        response = client.chat.completions.create(
             model=MODEL_NAME,
-            messages=[{"role": "user", "content": issue}],
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a customer support assistant. Respond ONLY in JSON format with keys: category, response, escalate, resolve."
+                },
+                {"role": "user", "content": issue}
+            ],
             temperature=0
         )
-        print(f"Proxy hit, status: {response.id}")
-        return None
+
+        content = response.choices[0].message.content
+
+        try:
+            data = json.loads(content)
+
+            return {
+                "category": data.get("category", "general"),
+                "response": data.get("response", "Thanks for reaching out."),
+                "escalate": data.get("escalate", False),
+                "resolve": data.get("resolve", True)
+            }
+
+        except:
+            return None
+
     except Exception as e:
-        print(f"ERROR: Failed hitting proxy: {e}")
+        print(f"LLM Error: {e}")
         return None
 
 
 # -----------------------------
 # MAIN INFERENCE
 # -----------------------------
-def run_inference(level="hard"):
+def run_inference(level="easy"):
     print(f"[START] task=supportdesk_{level} env=SupportDeskEnv model={MODEL_NAME}")
 
     total_reward = 0.0
@@ -103,7 +109,6 @@ def run_inference(level="hard"):
     fixed_category = None
 
     try:
-        # Reset environment
         res = requests.post(f"{ENV_URL}/reset", json={"level": level}, timeout=5)
         obs = res.json().get("observation", {})
 
@@ -118,10 +123,10 @@ def run_inference(level="hard"):
                 category = classify_issue(issue)
                 fixed_category = category
 
-            # Try LLM (optional)
+            # 🔥 FORCE LLM CALL
             action_data = get_llm_action(issue)
 
-            # Deterministic fallback (primary)
+            # ✅ fallback ONLY if LLM fails
             if not action_data:
                 if steps_taken == 1:
                     response_text = generate_response(issue, category)
@@ -135,12 +140,14 @@ def run_inference(level="hard"):
                     "resolve": True
                 }
 
-            # Step environment
-            step_res = requests.post(
-                f"{ENV_URL}/step",
-                json=action_data,
-                timeout=5
-            ).json()
+            try:
+                step_res = requests.post(
+                    f"{ENV_URL}/step",
+                    json=action_data,
+                    timeout=5
+                ).json()
+            except:
+                break
 
             reward = step_res.get("reward", {}).get("score", 0.0)
             done = step_res.get("done", False)
@@ -150,7 +157,6 @@ def run_inference(level="hard"):
 
             print(f"[STEP] step={steps_taken} action={json.dumps(action_data)} reward={reward} done={done}")
 
-        # Final score
         score = total_reward / max(steps_taken, 1)
         success = score >= 0.6
 
@@ -161,7 +167,7 @@ def run_inference(level="hard"):
 
 
 # -----------------------------
-# ENTRY POINT
+# ENTRY POINT (3 TASKS REQUIRED)
 # -----------------------------
 if __name__ == "__main__":
     run_inference("easy")
