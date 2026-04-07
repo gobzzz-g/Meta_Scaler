@@ -7,19 +7,16 @@ ENV_URL = "http://localhost:7860"
 MODEL_NAME = "gpt-4o-mini"
 
 # -----------------------------
-# SAFE CLIENT INIT (CRITICAL)
+# 🔥 FORCE CLIENT INIT (CRITICAL)
 # -----------------------------
 client = None
 
 try:
-    if "API_BASE_URL" in os.environ and "API_KEY" in os.environ:
-        client = OpenAI(
-            base_url=os.environ["API_BASE_URL"],
-            api_key=os.environ["API_KEY"]
-        )
-        print("✅ LiteLLM client initialized")
-    else:
-        print("⚠️ Running locally without LiteLLM proxy")
+    client = OpenAI(
+        base_url=os.environ.get("API_BASE_URL"),
+        api_key=os.environ.get("API_KEY", "dummy-key-if-missing")
+    )
+    print("✅ OpenAI client initialized")
 
 except Exception as e:
     print(f"Client Init Error: {e}")
@@ -27,25 +24,25 @@ except Exception as e:
 
 
 # -----------------------------
-# CLASSIFICATION (STRONG)
+# CLASSIFICATION
 # -----------------------------
 def classify_issue(issue: str):
     issue = issue.lower()
 
     if any(k in issue for k in [
         "payment", "card", "billing", "refund",
-        "charged", "transaction", "money", "debit"
+        "charged", "transaction", "money"
     ]):
         return "billing"
 
     if any(k in issue for k in [
         "login", "error", "account", "bug",
         "crash", "password", "not working",
-        "issue", "problem", "failed"
+        "issue", "problem"
     ]):
         return "tech"
 
-    return "tech"  # avoid low-score general
+    return "tech"
 
 
 # -----------------------------
@@ -55,20 +52,12 @@ def generate_response(issue: str, category: str):
     issue_lower = issue.lower()
 
     if category == "billing":
-        if "refund" in issue_lower:
-            return "I understand your concern. Please check your refund status in the billing section. If it is still pending, I can guide you further."
-        if "charged" in issue_lower:
-            return "I’m sorry for the inconvenience. Please verify your transaction history. If the charge is incorrect, I can help you raise a refund request."
-        return "I understand your concern. Please update your payment method and retry the transaction."
+        return "I understand your concern. Please check your billing details or retry the transaction."
 
     elif category == "tech":
-        if "login" in issue_lower:
-            return "I’m sorry for the inconvenience. Please reset your password using the forgot password option and try logging in again."
-        if "error" in issue_lower or "crash" in issue_lower:
-            return "I’m sorry for the inconvenience. Please restart the app or clear cache. This usually resolves such issues."
-        return "I’m sorry for the inconvenience. Please check your internet connection and restart the app."
+        return "I’m sorry for the inconvenience. Please restart the app or check your internet connection."
 
-    return "Thanks for reaching out. Please provide more details so I can assist you better."
+    return "Thanks for reaching out."
 
 
 # -----------------------------
@@ -79,11 +68,19 @@ def followup_response():
 
 
 # -----------------------------
-# LLM ACTION (PROXY REQUIRED)
+# 🔥 LLM ACTION (MANDATORY)
 # -----------------------------
 def get_llm_action(issue):
+    global client
     if client is None:
-        return None
+        try:
+            client = OpenAI(
+                base_url=os.environ.get("API_BASE_URL"),
+                api_key=os.environ.get("API_KEY", "dummy-key-if-missing")
+            )
+        except Exception as e:
+            print(f"Fallback Client Init Error: {e}")
+            return None
 
     try:
         response = client.chat.completions.create(
@@ -91,7 +88,7 @@ def get_llm_action(issue):
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a customer support assistant. Respond ONLY in JSON format with keys: category, response, escalate, resolve."
+                    "content": "Respond ONLY in JSON format: {\"category\":\"billing|tech|general\",\"response\":\"...\",\"escalate\":false,\"resolve\":true}"
                 },
                 {"role": "user", "content": issue}
             ],
@@ -110,7 +107,8 @@ def get_llm_action(issue):
                 "resolve": data.get("resolve", True)
             }
 
-        except:
+        except Exception as parse_e:
+            print(f"Parse Error: {parse_e}")
             return None
 
     except Exception as e:
@@ -144,7 +142,7 @@ def run_inference(level="easy"):
                 category = classify_issue(issue)
                 fixed_category = category
 
-            # 🔥 FORCE LLM FIRST
+            # 🔥 ALWAYS TRY LLM FIRST
             action_data = get_llm_action(issue)
 
             # fallback if LLM fails
