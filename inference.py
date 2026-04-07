@@ -68,27 +68,27 @@ def followup_response():
 
 
 # -----------------------------
-# OPTIONAL LLM
+# OPTIONAL LLM (SAFE)
 # -----------------------------
 def get_llm_action(issue):
     if client is None:
         return None
 
     try:
-        response = client.chat.completions.create(
+        # Optional — we ignore output to keep deterministic scoring
+        client.chat.completions.create(
             model=MODEL_NAME,
             messages=[{"role": "user", "content": issue}],
             temperature=0
         )
-
-        return None  # keep deterministic scoring
+        return None
 
     except:
         return None
 
 
 # -----------------------------
-# MAIN
+# MAIN INFERENCE
 # -----------------------------
 def run_inference(level="hard"):
     print(f"[START] task=supportdesk_{level} env=SupportDeskEnv model={MODEL_NAME}")
@@ -99,6 +99,7 @@ def run_inference(level="hard"):
     fixed_category = None
 
     try:
+        # Reset environment
         res = requests.post(f"{ENV_URL}/reset", json={"level": level}, timeout=5)
         obs = res.json().get("observation", {})
 
@@ -113,8 +114,10 @@ def run_inference(level="hard"):
                 category = classify_issue(issue)
                 fixed_category = category
 
+            # Try LLM (optional)
             action_data = get_llm_action(issue)
 
+            # Deterministic fallback (primary)
             if not action_data:
                 if steps_taken == 1:
                     response_text = generate_response(issue, category)
@@ -128,7 +131,12 @@ def run_inference(level="hard"):
                     "resolve": True
                 }
 
-            step_res = requests.post(f"{ENV_URL}/step", json=action_data, timeout=5).json()
+            # Step environment
+            step_res = requests.post(
+                f"{ENV_URL}/step",
+                json=action_data,
+                timeout=5
+            ).json()
 
             reward = step_res.get("reward", {}).get("score", 0.0)
             done = step_res.get("done", False)
@@ -138,14 +146,18 @@ def run_inference(level="hard"):
 
             print(f"[STEP] step={steps_taken} action={json.dumps(action_data)} reward={reward} done={done}")
 
+        # Final score
         score = total_reward / max(steps_taken, 1)
         success = score >= 0.6
 
         print(f"[END] success={success} steps={steps_taken} score={score}")
 
-    except Exception as e:
+    except Exception:
         print(f"[END] success=False steps={steps_taken} score=0.0")
 
 
+# -----------------------------
+# ENTRY POINT
+# -----------------------------
 if __name__ == "__main__":
     run_inference("hard")

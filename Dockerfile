@@ -1,10 +1,10 @@
-# Use stable Python image (avoid slim issues)
-FROM python:3.10
+# Stable base image (avoids Docker Hub auth issues)
+FROM python:3.9-slim-buster
 
 # Set working directory
 WORKDIR /app
 
-# Copy all project files
+# Copy all files
 COPY . .
 
 # Upgrade pip
@@ -13,8 +13,5 @@ RUN pip install --no-cache-dir --upgrade pip
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port (for safety)
-EXPOSE 7860
-
 # Run inference
-CMD ["python", "server.py"]
+CMD ["python", "inference.py"]
