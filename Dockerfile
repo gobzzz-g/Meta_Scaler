@@ -1,12 +1,20 @@
-FROM python:3.10-slim
+# Use stable Python image (avoid slim issues)
+FROM python:3.10
 
-ENV PYTHONUNBUFFERED=1
+# Set working directory
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
+# Copy all project files
 COPY . .
 
+# Upgrade pip
+RUN pip install --no-cache-dir --upgrade pip
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Expose port (for safety)
 EXPOSE 7860
-CMD ["python", "server.py"]
+
+# Run inference
+CMD ["python", "inference.py"]
