@@ -7,50 +7,6 @@ ENV_URL = "http://localhost:7860"
 MODEL_NAME = "gpt-4o-mini"
 
 # -----------------------------
-# CLIENT INIT (SAFE + STRICT)
-# -----------------------------
-client = None
-
-try:
-    base_url = os.environ["API_BASE_URL"]
-    api_key = os.environ["API_KEY"]
-
-    client = OpenAI(
-        base_url=base_url,
-        api_key=api_key
-    )
-
-    print("✅ LiteLLM client initialized")
-
-except KeyError:
-    print("⚠️ Running locally without LiteLLM proxy")
-    client = None
-
-except Exception as e:
-    print(f"Client init error: {e}")
-    client = None
-
-
-# -----------------------------
-# FORCE PROXY CALL (CRITICAL)
-# -----------------------------
-def ensure_proxy_call():
-    if client is None:
-        return
-
-    try:
-        client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[{"role": "user", "content": "Hello"}],
-            temperature=0
-        )
-        print("✅ Proxy call made")
-
-    except Exception as e:
-        print(f"Proxy call error: {e}")
-
-
-# -----------------------------
 # CLASSIFICATION
 # -----------------------------
 def classify_issue(issue: str):
@@ -86,10 +42,13 @@ def generate_response(issue: str, category: str):
 # LLM ACTION
 # -----------------------------
 def get_llm_action(issue):
-    if client is None:
-        return None
-
     try:
+        # Mandatory initialization exactly as requested
+        client = OpenAI(
+            base_url=os.environ["API_BASE_URL"],
+            api_key=os.environ["API_KEY"]
+        )
+
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
