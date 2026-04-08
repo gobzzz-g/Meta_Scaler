@@ -7,6 +7,24 @@ ENV_URL = "http://localhost:7860"
 MODEL_NAME = "gpt-4o-mini"
 
 # -----------------------------
+# FORCE PROXY CALL (CRITICAL)
+# -----------------------------
+def ensure_proxy_call():
+    try:
+        client = OpenAI(
+            base_url=os.environ["API_BASE_URL"],
+            api_key=os.environ["API_KEY"]
+        )
+        client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": "Hello"}],
+            temperature=0
+        )
+        print("✅ Proxy call made")
+    except Exception as e:
+        print(f"Proxy call error: {e}")
+
+# -----------------------------
 # CLASSIFICATION
 # -----------------------------
 def classify_issue(issue: str):
