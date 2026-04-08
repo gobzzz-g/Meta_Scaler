@@ -4,17 +4,17 @@ import json
 from openai import OpenAI
 
 # =============================
-# ENV VARIABLES (MANDATORY)
+# ENV VARIABLES (STRICTLY REQUIRED)
 # =============================
 API_BASE_URL = os.environ["API_BASE_URL"]
-API_KEY = os.environ["HF_TOKEN"]   # ✅ FIXED (was API_KEY ❌)
+API_KEY = os.environ["API_KEY"]   # ✅ FINAL FIX
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
 
 ENV_URL = "http://localhost:7860"
 
 
 # =============================
-# 🔥 GLOBAL PROXY CALL (UNSKIPPABLE)
+# 🔥 GLOBAL PROXY CALL (CRITICAL)
 # =============================
 try:
     client = OpenAI(
@@ -26,28 +26,13 @@ try:
         messages=[{"role": "user", "content": "Hello"}],
         temperature=0
     )
-    print("✅ GLOBAL PROXY CALL SUCCESS")
+    print("✅ PROXY CALL SUCCESS", flush=True)
 except Exception as e:
-    print(f"❌ GLOBAL PROXY CALL FAILED: {e}")
+    print(f"❌ PROXY CALL FAILED: {e}", flush=True)
 
 
 # =============================
-# CLASSIFICATION
-# =============================
-def classify_issue(issue: str):
-    issue = issue.lower()
-
-    if any(k in issue for k in [
-        "payment", "card", "billing", "refund",
-        "charged", "transaction"
-    ]):
-        return "billing"
-
-    return "tech"
-
-
-# =============================
-# LLM ACTION (STRICT JSON)
+# LLM ACTION
 # =============================
 def get_llm_action(issue):
     try:
@@ -61,7 +46,7 @@ def get_llm_action(issue):
             messages=[
                 {
                     "role": "system",
-                    "content": "Respond ONLY in JSON format: {\"category\":\"billing|tech\",\"response\":\"...\",\"escalate\":false,\"resolve\":true}"
+                    "content": "Respond ONLY in JSON: {\"category\":\"billing|tech\",\"response\":\"...\",\"escalate\":false,\"resolve\":true}"
                 },
                 {"role": "user", "content": issue}
             ],
@@ -73,16 +58,11 @@ def get_llm_action(issue):
         try:
             data = json.loads(content)
         except:
-            data = {
-                "category": "tech",
-                "response": "I'll help you fix this issue.",
-                "escalate": False,
-                "resolve": True
-            }
+            data = {}
 
         return {
             "category": data.get("category", "tech"),
-            "response": data.get("response", "Thanks"),
+            "response": data.get("response", "I'll help you fix this."),
             "escalate": False,
             "resolve": True
         }
@@ -140,16 +120,10 @@ def run_inference(level="easy"):
         score = min(max(score, 0.0), 1.0)
         success = score >= 0.6
 
-        print(
-            f"[END] success={success} steps={steps_taken} score={score}",
-            flush=True
-        )
+        print(f"[END] success={success} steps={steps_taken} score={score}", flush=True)
 
     except Exception as e:
-        print(
-            f"[END] success=False steps={steps_taken} score=0.0 error={e}",
-            flush=True
-        )
+        print(f"[END] success=False steps={steps_taken} score=0.0 error={e}", flush=True)
 
 
 # =============================
