@@ -3,14 +3,26 @@ import requests
 import json
 from openai import OpenAI
 
-# 🔥 GLOBAL PROXY CALL (UNSKIPPABLE - VERY IMPORTANT)
+# =============================
+# ENV VARIABLES (MANDATORY)
+# =============================
+API_BASE_URL = os.environ["API_BASE_URL"]
+API_KEY = os.environ["HF_TOKEN"]   # ✅ FIXED (was API_KEY ❌)
+MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
+
+ENV_URL = "http://localhost:7860"
+
+
+# =============================
+# 🔥 GLOBAL PROXY CALL (UNSKIPPABLE)
+# =============================
 try:
     client = OpenAI(
-        base_url=os.environ["API_BASE_URL"],
-        api_key=os.environ["API_KEY"]
+        base_url=API_BASE_URL,
+        api_key=API_KEY
     )
     client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=MODEL_NAME,
         messages=[{"role": "user", "content": "Hello"}],
         temperature=0
     )
@@ -18,13 +30,10 @@ try:
 except Exception as e:
     print(f"❌ GLOBAL PROXY CALL FAILED: {e}")
 
-ENV_URL = "http://localhost:7860"
-MODEL_NAME = "gpt-4o-mini"
 
-
-# -----------------------------
+# =============================
 # CLASSIFICATION
-# -----------------------------
+# =============================
 def classify_issue(issue: str):
     issue = issue.lower()
 
@@ -34,34 +43,17 @@ def classify_issue(issue: str):
     ]):
         return "billing"
 
-    if any(k in issue for k in [
-        "login", "error", "account", "bug",
-        "crash", "password", "issue", "problem"
-    ]):
-        return "tech"
-
     return "tech"
 
 
-# -----------------------------
-# FALLBACK RESPONSE
-# -----------------------------
-def generate_response(issue: str, category: str):
-    if category == "billing":
-        return "I understand your concern. Please check your billing details or retry the transaction."
-    elif category == "tech":
-        return "I’m sorry for the inconvenience. Please restart the app or check your internet connection."
-    return "Thanks for reaching out."
-
-
-# -----------------------------
-# LLM ACTION (ALWAYS USES PROXY)
-# -----------------------------
+# =============================
+# LLM ACTION (STRICT JSON)
+# =============================
 def get_llm_action(issue):
     try:
         client = OpenAI(
-            base_url=os.environ["API_BASE_URL"],
-            api_key=os.environ["API_KEY"]
+            base_url=API_BASE_URL,
+            api_key=API_KEY
         )
 
         response = client.chat.completions.create(
@@ -69,34 +61,34 @@ def get_llm_action(issue):
             messages=[
                 {
                     "role": "system",
-                    "content": "Respond ONLY in JSON: {\"category\":\"billing|tech\",\"response\":\"...\",\"escalate\":false,\"resolve\":true}"
+                    "content": "Respond ONLY in JSON format: {\"category\":\"billing|tech\",\"response\":\"...\",\"escalate\":false,\"resolve\":true}"
                 },
                 {"role": "user", "content": issue}
             ],
             temperature=0
         )
 
-        content = response.choices[0].message.content
+        content = response.choices[0].message.content.strip()
 
         try:
             data = json.loads(content)
-            return {
-                "category": data.get("category", "tech"),
-                "response": data.get("response", "Thanks"),
-                "escalate": False,
-                "resolve": True
-            }
-        except Exception as e:
-            print(f"JSON parse error: {e}")
-            return {
+        except:
+            data = {
                 "category": "tech",
-                "response": "Sorry, I’ll help you fix this.",
+                "response": "I'll help you fix this issue.",
                 "escalate": False,
                 "resolve": True
             }
 
+        return {
+            "category": data.get("category", "tech"),
+            "response": data.get("response", "Thanks"),
+            "escalate": False,
+            "resolve": True
+        }
+
     except Exception as e:
-        print(f"LLM Error: {e}")
+        print(f"[DEBUG] LLM Error: {e}", flush=True)
         return {
             "category": "tech",
             "response": "Temporary issue. Please try again.",
@@ -105,11 +97,11 @@ def get_llm_action(issue):
         }
 
 
-# -----------------------------
+# =============================
 # MAIN INFERENCE
-# -----------------------------
+# =============================
 def run_inference(level="easy"):
-    print(f"[START] task=supportdesk_{level} env=SupportDeskEnv model={MODEL_NAME}")
+    print(f"[START] task=supportdesk_{level} env=SupportDeskEnv model={MODEL_NAME}", flush=True)
 
     total_reward = 0.0
     steps_taken = 0
@@ -125,11 +117,11 @@ def run_inference(level="easy"):
             issue = obs.get("user_message", "Help needed")
 
             # 🔥 ALWAYS CALL LLM
-            action_data = get_llm_action(issue)
+            action = get_llm_action(issue)
 
             step_res = requests.post(
                 f"{ENV_URL}/step",
-                json=action_data,
+                json=action,
                 timeout=5
             ).json()
 
@@ -139,20 +131,30 @@ def run_inference(level="easy"):
 
             total_reward += reward
 
-            print(f"[STEP] step={steps_taken} action={json.dumps(action_data)} reward={reward} done={done}")
+            print(
+                f"[STEP] step={steps_taken} action={json.dumps(action)} reward={reward} done={done}",
+                flush=True
+            )
 
         score = total_reward / max(steps_taken, 1)
+        score = min(max(score, 0.0), 1.0)
         success = score >= 0.6
 
-        print(f"[END] success={success} steps={steps_taken} score={score}")
+        print(
+            f"[END] success={success} steps={steps_taken} score={score}",
+            flush=True
+        )
 
     except Exception as e:
-        print(f"[END] success=False steps={steps_taken} score=0.0 error={e}")
+        print(
+            f"[END] success=False steps={steps_taken} score=0.0 error={e}",
+            flush=True
+        )
 
 
-# -----------------------------
+# =============================
 # ENTRY POINT
-# -----------------------------
+# =============================
 if __name__ == "__main__":
     run_inference("easy")
     run_inference("medium")
