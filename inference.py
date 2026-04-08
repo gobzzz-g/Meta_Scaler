@@ -6,11 +6,11 @@ from openai import OpenAI
 ENV_URL = "http://localhost:7860"
 MODEL_NAME = "gpt-4o-mini"
 
+# -----------------------------
+# CLIENT INIT (SAFE + STRICT)
+# -----------------------------
 client = None
 
-# -----------------------------
-# STRICT CLIENT INIT (NO DUMMY)
-# -----------------------------
 try:
     base_url = os.environ["API_BASE_URL"]
     api_key = os.environ["API_KEY"]
@@ -22,25 +22,32 @@ try:
 
     print("✅ LiteLLM client initialized")
 
+except KeyError:
+    print("⚠️ Running locally without LiteLLM proxy")
+    client = None
+
 except Exception as e:
-    print(f"⚠️ Running locally without LiteLLM proxy: {e}")
+    print(f"Client init error: {e}")
     client = None
 
 
 # -----------------------------
-# FORCE ONE SUCCESSFUL CALL
+# FORCE PROXY CALL (CRITICAL)
 # -----------------------------
 def ensure_proxy_call():
+    if client is None:
+        return
+
     try:
-        if client:
-            client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[{"role": "user", "content": "Hello"}],
-                temperature=0
-            )
-            print("✅ Proxy call successful")
+        client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": "Hello"}],
+            temperature=0
+        )
+        print("✅ Proxy call made")
+
     except Exception as e:
-        print(f"Proxy call failed locally: {e}")
+        print(f"Proxy call error: {e}")
 
 
 # -----------------------------
@@ -49,10 +56,16 @@ def ensure_proxy_call():
 def classify_issue(issue: str):
     issue = issue.lower()
 
-    if any(k in issue for k in ["payment", "card", "billing", "refund", "charged", "transaction"]):
+    if any(k in issue for k in [
+        "payment", "card", "billing", "refund",
+        "charged", "transaction"
+    ]):
         return "billing"
 
-    if any(k in issue for k in ["login", "error", "account", "bug", "crash", "password", "issue", "problem"]):
+    if any(k in issue for k in [
+        "login", "error", "account", "bug",
+        "crash", "password", "issue", "problem"
+    ]):
         return "tech"
 
     return "tech"
@@ -64,10 +77,8 @@ def classify_issue(issue: str):
 def generate_response(issue: str, category: str):
     if category == "billing":
         return "I understand your concern. Please check your billing details or retry the transaction."
-
     elif category == "tech":
         return "I’m sorry for the inconvenience. Please restart the app or check your internet connection."
-
     return "Thanks for reaching out."
 
 
@@ -75,10 +86,10 @@ def generate_response(issue: str, category: str):
 # LLM ACTION
 # -----------------------------
 def get_llm_action(issue):
-    try:
-        if client is None:
-            return None
+    if client is None:
+        return None
 
+    try:
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
@@ -95,12 +106,14 @@ def get_llm_action(issue):
 
         try:
             data = json.loads(content)
+
             return {
                 "category": data.get("category", "tech"),
                 "response": data.get("response", "Thanks"),
                 "escalate": False,
                 "resolve": True
             }
+
         except:
             return None
 
@@ -129,10 +142,9 @@ def run_inference(level="easy"):
             issue = obs.get("user_message", "Help needed")
             category = classify_issue(issue)
 
-            # 🔥 TRY LLM FIRST
+            # 🔥 ALWAYS TRY LLM
             action_data = get_llm_action(issue)
 
-            # fallback
             if not action_data:
                 action_data = {
                     "category": category,
@@ -141,15 +153,11 @@ def run_inference(level="easy"):
                     "resolve": True
                 }
 
-            try:
-                step_res = requests.post(
-                    f"{ENV_URL}/step",
-                    json=action_data,
-                    timeout=5
-                ).json()
-            except Exception as e:
-                print(f"Step Error: {e}")
-                break
+            step_res = requests.post(
+                f"{ENV_URL}/step",
+                json=action_data,
+                timeout=5
+            ).json()
 
             reward = step_res.get("reward", {}).get("score", 0.0)
             done = step_res.get("done", False)
@@ -172,7 +180,7 @@ def run_inference(level="easy"):
 # ENTRY POINT
 # -----------------------------
 if __name__ == "__main__":
-    ensure_proxy_call()   # 🔥 CRITICAL LINE
+    ensure_proxy_call()   # 🔥 REQUIRED
     run_inference("easy")
     run_inference("medium")
     run_inference("hard")
