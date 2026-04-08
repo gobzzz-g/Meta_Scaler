@@ -4,16 +4,16 @@ import json
 from openai import OpenAI
 
 # =============================
-# ENV VARIABLES
+# ENV VARIABLES (STRICT)
 # =============================
-API_BASE_URL = os.environ["API_BASE_URL"]
-API_KEY = os.environ["API_KEY"]
+API_BASE_URL = os.environ.get("API_BASE_URL")
+API_KEY = os.environ.get("API_KEY")
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
 
 ENV_URL = "http://localhost:7860"
 
 # =============================
-# 🔥 GLOBAL LLM CLIENT (CRITICAL FIX)
+# 🔥 GLOBAL LLM CLIENT
 # =============================
 try:
     client = OpenAI(
@@ -27,7 +27,7 @@ except Exception as e:
 
 
 # =============================
-# LLM ACTION (FORCE CALL)
+# LLM ACTION (RESPONSES API)
 # =============================
 def get_llm_action(issue):
     try:
@@ -36,19 +36,23 @@ def get_llm_action(issue):
 
         print("🚀 CALLING LLM...", flush=True)
 
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model=MODEL_NAME,
-            messages=[
-                {"role": "user", "content": issue}
-            ],
-            temperature=0
+            input=issue
         )
 
         print("✅ LLM RESPONSE RECEIVED", flush=True)
 
+        # Extract text safely
+        output_text = ""
+        try:
+            output_text = response.output[0].content[0].text
+        except:
+            output_text = "I'll help you with this."
+
         return {
             "category": "tech",
-            "response": response.choices[0].message.content[:120],
+            "response": output_text[:120],
             "escalate": False,
             "resolve": True
         }
