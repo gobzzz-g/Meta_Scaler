@@ -3,9 +3,20 @@ import requests
 import json
 from openai import OpenAI
 
-ENV_URL = "http://localhost:7860"
-MODEL_NAME = "gpt-4o-mini"
-
+# 🔥 ADD THIS BLOCK RIGHT HERE (TOP OF FILE)
+try:
+    client = OpenAI(
+        base_url=os.environ["API_BASE_URL"],
+        api_key=os.environ["API_KEY"]
+    )
+    client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": "Hello"}],
+        temperature=0
+    )
+    print("✅ GLOBAL PROXY CALL SUCCESS")
+except Exception as e:
+    print(f"❌ GLOBAL PROXY CALL FAILED: {e}")
 # -----------------------------
 # CLASSIFICATION
 # -----------------------------
