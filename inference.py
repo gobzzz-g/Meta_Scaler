@@ -3,7 +3,7 @@ import requests
 import json
 from openai import OpenAI
 
-# 🔥 ADD THIS BLOCK RIGHT HERE (TOP OF FILE)
+# 🔥 GLOBAL PROXY CALL (UNSKIPPABLE - VERY IMPORTANT)
 try:
     client = OpenAI(
         base_url=os.environ["API_BASE_URL"],
@@ -17,6 +17,11 @@ try:
     print("✅ GLOBAL PROXY CALL SUCCESS")
 except Exception as e:
     print(f"❌ GLOBAL PROXY CALL FAILED: {e}")
+
+ENV_URL = "http://localhost:7860"
+MODEL_NAME = "gpt-4o-mini"
+
+
 # -----------------------------
 # CLASSIFICATION
 # -----------------------------
@@ -50,13 +55,13 @@ def generate_response(issue: str, category: str):
 
 
 # -----------------------------
-# LLM ACTION (ALWAYS CALLS PROXY)
+# LLM ACTION (ALWAYS USES PROXY)
 # -----------------------------
 def get_llm_action(issue):
     try:
         client = OpenAI(
-            base_url=os.environ["API_BASE_URL"],  # ✅ REQUIRED
-            api_key=os.environ["API_KEY"]         # ✅ REQUIRED
+            base_url=os.environ["API_BASE_URL"],
+            api_key=os.environ["API_KEY"]
         )
 
         response = client.chat.completions.create(
@@ -73,7 +78,6 @@ def get_llm_action(issue):
 
         content = response.choices[0].message.content
 
-        # ✅ Safe JSON parsing
         try:
             data = json.loads(content)
             return {
@@ -102,25 +106,10 @@ def get_llm_action(issue):
 
 
 # -----------------------------
-# MAIN INFERENCE (FORCE PROXY CALL HERE)
+# MAIN INFERENCE
 # -----------------------------
 def run_inference(level="easy"):
     print(f"[START] task=supportdesk_{level} env=SupportDeskEnv model={MODEL_NAME}")
-
-    # 🔥 CRITICAL: FORCE PROXY CALL (ALWAYS EXECUTES)
-    try:
-        client = OpenAI(
-            base_url=os.environ["API_BASE_URL"],
-            api_key=os.environ["API_KEY"]
-        )
-        client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[{"role": "user", "content": "Hello"}],
-            temperature=0
-        )
-        print("✅ Proxy call successful")
-    except Exception as e:
-        print(f"Proxy call failed: {e}")
 
     total_reward = 0.0
     steps_taken = 0
@@ -134,9 +123,8 @@ def run_inference(level="easy"):
             steps_taken += 1
 
             issue = obs.get("user_message", "Help needed")
-            category = classify_issue(issue)
 
-            # 🔥 ALWAYS USE LLM
+            # 🔥 ALWAYS CALL LLM
             action_data = get_llm_action(issue)
 
             step_res = requests.post(
