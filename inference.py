@@ -4,71 +4,57 @@ import json
 from openai import OpenAI
 
 # =============================
-# ENV VARIABLES (STRICTLY REQUIRED)
+# ENV VARIABLES
 # =============================
 API_BASE_URL = os.environ["API_BASE_URL"]
-API_KEY = os.environ["API_KEY"]   # ✅ FINAL FIX
+API_KEY = os.environ["API_KEY"]
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
 
 ENV_URL = "http://localhost:7860"
 
-
 # =============================
-# 🔥 GLOBAL PROXY CALL (CRITICAL)
+# 🔥 GLOBAL LLM CLIENT (CRITICAL FIX)
 # =============================
 try:
     client = OpenAI(
         base_url=API_BASE_URL,
         api_key=API_KEY
     )
-    client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[{"role": "user", "content": "Hello"}],
-        temperature=0
-    )
-    print("✅ PROXY CALL SUCCESS", flush=True)
+    print("✅ LLM CLIENT INITIALIZED", flush=True)
 except Exception as e:
-    print(f"❌ PROXY CALL FAILED: {e}", flush=True)
+    print(f"❌ CLIENT INIT FAILED: {e}", flush=True)
+    client = None
 
 
 # =============================
-# LLM ACTION
+# LLM ACTION (FORCE CALL)
 # =============================
 def get_llm_action(issue):
     try:
-        client = OpenAI(
-            base_url=API_BASE_URL,
-            api_key=API_KEY
-        )
+        if client is None:
+            raise Exception("Client not initialized")
+
+        print("🚀 CALLING LLM...", flush=True)
 
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
-                {
-                    "role": "system",
-                    "content": "Respond ONLY in JSON: {\"category\":\"billing|tech\",\"response\":\"...\",\"escalate\":false,\"resolve\":true}"
-                },
                 {"role": "user", "content": issue}
             ],
             temperature=0
         )
 
-        content = response.choices[0].message.content.strip()
-
-        try:
-            data = json.loads(content)
-        except:
-            data = {}
+        print("✅ LLM RESPONSE RECEIVED", flush=True)
 
         return {
-            "category": data.get("category", "tech"),
-            "response": data.get("response", "I'll help you fix this."),
+            "category": "tech",
+            "response": response.choices[0].message.content[:120],
             "escalate": False,
             "resolve": True
         }
 
     except Exception as e:
-        print(f"[DEBUG] LLM Error: {e}", flush=True)
+        print(f"❌ LLM ERROR: {e}", flush=True)
         return {
             "category": "tech",
             "response": "Temporary issue. Please try again.",
@@ -120,10 +106,16 @@ def run_inference(level="easy"):
         score = min(max(score, 0.0), 1.0)
         success = score >= 0.6
 
-        print(f"[END] success={success} steps={steps_taken} score={score}", flush=True)
+        print(
+            f"[END] success={success} steps={steps_taken} score={score}",
+            flush=True
+        )
 
     except Exception as e:
-        print(f"[END] success=False steps={steps_taken} score=0.0 error={e}", flush=True)
+        print(
+            f"[END] success=False steps={steps_taken} score=0.0 error={e}",
+            flush=True
+        )
 
 
 # =============================
