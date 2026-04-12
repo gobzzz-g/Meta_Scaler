@@ -16,5 +16,5 @@ class Action(BaseModel):
     resolve: bool = Field(default=False, description="Whether the issue is considered resolved")
 
 class Reward(BaseModel):
-    score: float = Field(..., ge=0.0, le=1.0, description="Overall reward score")
+    score: float = Field(..., gt=0.0, lt=1.0, description="Overall reward score")
     metrics: dict = Field(default_factory=dict, description="Detailed metrics breakdown")

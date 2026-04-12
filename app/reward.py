@@ -54,5 +54,5 @@ def calculate_reward(obs: Observation, action: Action, expected_category: str, m
             score += efficiency_bonus
             metrics["efficiency_bonus"] = efficiency_bonus
             
-    final_score = float(max(0.0, min(1.0, score)))
+    final_score = float(max(0.01, min(0.99, score)))
     return Reward(score=final_score, metrics=metrics)
